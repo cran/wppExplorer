@@ -26,17 +26,23 @@ shinyUI(pageWithSidebar(
   headerPanel(paste("WPP", substr(wppExplorer:::wpp.data.env$package, 4, 8), "Explorer")),
   sidebarPanel(
     geochartPrereqs,
+    tags$head(
+         		#tags$style(type="text/css", ".jslider { max-width: 50px; }"),
+         		#tags$style(type='text/css', ".well { padding: 0px; margin-bottom: 5px; max-width: 100px; }"),
+	tags$style(type='text/css', ".span4 { max-width: 270px; }")
+),
     uiOutput('yearUI'),
     selectInput('indicator', 'Indicator:', wppExplorer:::wpp.data.env$indicators),
     textOutput('indicatorDesc'),
-    conditionalPanel(condition="input.indicator > 13",
+    conditionalPanel(condition="input.indicator > 15",
     	tags$head(tags$style(type="text/css", "#selagesmult { height: 150px; width: 70px}"),
     			  tags$style(type="text/css", "#selages { height:25px; width: 70px}"),
     			  tags$style(type="text/css", "#indsexmult { height: 50px; width: 90px}"),
     			  tags$style(type="text/css", "#indsex { height: 25px; width: 90px}")),
     	row(
-			col(1, ''),
+			col(2, ''),
 			col(4, uiOutput('sexselection')),
+			col(1, ''),
     		col(3, uiOutput('ageselection'))
     	)
     ),
@@ -47,6 +53,7 @@ shinyUI(pageWithSidebar(
       tabPanel('Map',
 		textOutput('mapyear'),
 		geochart('map'),
+		#htmlOutput('mapgvis'),
 		conditionalPanel(condition='input.map_selection',
 				checkboxInput('normalizeCountryPlot', 'Fixed scale', FALSE),
 				plotOutput('countryPlot', height='300px'))
@@ -59,9 +66,9 @@ shinyUI(pageWithSidebar(
 		textOutput('year2'),
       	tableOutput('stable')
       ),
-      tabPanel('Trends & Pyramids',
+      tabPanel('Trends, Age profiles & Pyramids',
   		tags$head(
-			tags$style(type="text/css", "#seltcountries { height: 400px; width: 150px}")
+			tags$style(type="text/css", "#seltcountries { height: 450px; width: 150px}")
 			),
 			tags$div(
 				class = "container",
@@ -70,15 +77,23 @@ shinyUI(pageWithSidebar(
 					col(2, uiOutput('cselection')),
 				  	col(7, tabsetPanel(
 				  				tabPanel('Median',
-				  					googleLineChart('trends', options=list(height=400))),
-				  				tabPanel('Probabilistic trends', plotOutput('probtrends')),
-				  				tabPanel('Pyramids', plotOutput('pyramids'))
+				  					googleLineChart('trends', options=list(height=400, width=650)),
+				  					checkboxInput('median.logscale', 'Log scale', FALSE)),
+				  				tabPanel('Probabilistic trends', plotOutput('probtrends', height="400px", width="650px")),
+				  				tabPanel('Age Profile', 
+				  					googleLineChart('age.profileM', options=list(height=200, width=650)),
+				  					googleLineChart('age.profileF', options=list(height=200, width=650)),
+				  					checkboxInput('aprofile.logscale', 'Log scale', FALSE)),
+				  				tabPanel('Pyramids', 
+				  					plotOutput('pyramids'),
+				  					checkboxInput('proppyramids', 'Pyramid of proportions', FALSE))				  			
 				  			)
 				  		)
  					),
  				row(
  					col(0.5, ''),
- 					col(9, tableOutput('trendstable'))
+ 					col(9, textOutput('trendstabletitle'),
+ 						   tableOutput('trendstable'))
  					)
  				)
  		),
@@ -86,7 +101,15 @@ shinyUI(pageWithSidebar(
  		textOutput('year3'),
       	checkboxInput('fiXscaleHist', 'Fixed x-axis over time', TRUE),
       	plotOutput('hist')
-    ) #end tabPanel
+    )#,
+    # tabPanel('Age Profiles',
+    	# tabsetPanel(
+    		# tabPanel('Multiple Countries',
+    				# ),
+    		# tabPanel('Multiple Years',
+    				# )
+    		# )
+     # ) #end tabPanel
   ) #end tabsetPanel
   ) #end mainPanel
 ))

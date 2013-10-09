@@ -1,0 +1,20 @@
+1.1-1 (10/9/2013)
+-----
+A few unit tests.
+
+Minor polishing.
+
+1.1-0 (10/2/2013)
+-----
+New indicators: Mean childbearing age, mean annual pop. growth
+
+Propotional pyramids
+
+Vizualization for Age profiles for population, mortality and fertility.
+
+Log scale added.
+
+
+1.0-3 (9/25/2013)[CRAN]
+------
+Initial version.

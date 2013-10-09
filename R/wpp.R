@@ -155,6 +155,10 @@ medage <- function(...) {
 	ddply(.sum.popFM.keep.age(), "country_code", .fun=colwise(gmedian))
 }
 
+meanagechbear <- function(...) {
+	ddply(.sum.popFM.keep.age(), "country_code", .fun=colwise(gmean.child.bearing))
+}
+
 tdratio <- function(...) {
 	ddply(.sum.popFM.keep.age(), "country_code", .fun=colwise(dependency.ratio, which='total'))
 }
@@ -169,6 +173,13 @@ chdratio <- function(...) {
 
 oadratio <- function(...) {
 	ddply(.sum.popFM.keep.age(), "country_code", .fun=colwise(dependency.ratio, which='old'))
+}
+
+popgrowth <- function(...) {
+	pop <- tpop()
+	ncols <- ncol(pop)
+	#browser()
+	cbind(country_code=pop$country_code, log(pop[,3:ncols]/pop[,2:(ncols-1)])/5)
 }
 
 .pi.suffix <- function(x) c(low='l', high='u')[x]
@@ -307,7 +318,6 @@ sumMFbycountry <- function(datasetM, datasetF) {
 }
 
 sum.by.country.subset.age <- function(dataset, ages) {
-	#browser()
 	sum.by.country(with(dataset, dataset[gsub("^\\s+|\\s+$", "", age) %in% ages,]))
 }
 
@@ -327,10 +337,11 @@ ind.is.low.high <- function(indicator) ind.settings()[indicator, 'low.high']
 ind.no.age.sum <- function(indicator) ind.settings()[indicator, 'no.age.sum']
 ind.sum.in.table <- function(indicator) ind.settings()[indicator, 'sum.in.table']
 ind.mid.years <- function(indicator) ind.settings()[indicator, 'mid.years']
+ind.digits <- function(indicator) ind.settings()[indicator, 'digits']
 
 set.data.env <- function(name, value) wpp.data.env[[name]] <- value
 
-gmedian <- function(f, cats=NULL, age) {
+gmedian <- function(f, cats=NULL) {
 	# group median
 	if(is.null(cats)) cats <- seq(0, by=5, length=length(f)+1)
 	nhalf <- sum(f)/2.
@@ -340,6 +351,24 @@ gmedian <- function(f, cats=NULL, age) {
 	return(med)
 }
 
+gmean <- function (f, cats = NULL) 
+{
+    if (all(is.na(f))) 
+        return(NA)
+    if (is.null(cats)) 
+        cats <- seq(0, by = 5, length = length(f) + 1)
+    l <- min(length(cats), length(f) + 1)
+    mid.points <- cats[1:(l - 1)] + (cats[2:l] - cats[1:(l - 
+        1)])/2
+    counts <- f * mid.points
+    return(sum(counts)/sum(f))
+}
+
+gmean.child.bearing <- function(f) {
+	# group mean of child bearing age
+	return(gmean(f[4:10], cats=seq(15, by=5, length=8)))
+}
+
 dependency.ratio <- function(counts, which='total'){
 	nom <- 0
 	if(which %in% c('total', 'child')) nom <- nom + sum(counts[1:3])
@@ -347,25 +376,68 @@ dependency.ratio <- function(counts, which='total'){
 	nom/sum(counts[4:13])	
 }
 
-get.pyramid.data <- function(year, countries, which.pi=NULL, bound=NULL) {
+get.pyramid.data <- function(year, countries, which.pi=NULL, bound=NULL, indicators=c(F='popF', M='popM'), load.pred=TRUE) {
 	name.preds <- name.obs <- c(NULL, NULL)
 	if(is.null(which.pi)) {
-		name.obs <- c('popF', 'popM')
-		if(wpp.data.env$package=='wpp2012') name.preds <- c('popFprojMed', 'popMprojMed')
+		name.obs <- indicators
+		if(wpp.data.env$package=='wpp2012' && load.pred) name.preds <- paste(indicators, 'projMed', sep='')
 	} else { #PIs
 		if(wpp.data.env$package=='wpp2012' && .get.pi.name(as.integer(which.pi)) == 'half.child') 
-			name.obs <- paste('pop', c('F','M'), 'proj', capitalize(bound), sep='')
+			name.obs <- paste(indicators, 'proj', capitalize(bound), sep='')
 	}
 	if(all(is.null(c(name.preds, name.obs)))) return(NULL)
-	pF <- load.and.merge.datasets(name.obs[1], name.preds[1], by=c('country_code', 'age'), remove.cols=c('country', 'name'))
-	pM <- load.and.merge.datasets(name.obs[2], name.preds[2], by=c('country_code', 'age'), remove.cols=c('country', 'name'))
-	dataF <- merge.with.un.and.melt(cbind(pF, age.num=rep(1:21, nrow(pF)/21)), id.vars=c('charcode', 'age', 'age.num'),
-				what="popF")
-	dataF <- cbind(dataF, sex='F')
-	dataM <- merge.with.un.and.melt(cbind(pM, age.num=rep(1:21, nrow(pM)/21)), id.vars=c('charcode', 'age', 'age.num'),
-				what="popM")
-	dataM <- cbind(dataM, sex='M')
-	data <- wpp.by.year(rbind(dataF, dataM), year)
 	#browser()
+	dataB <- list()
+	for(i in 1:min(2,length(indicators))) {
+		p <- load.and.merge.datasets(name.obs[i], name.preds[i], by=c('country_code', 'age'), remove.cols=c('country', 'name'))
+		dataB[[i]] <- merge.with.un.and.melt(cbind(p, age.num=.get.age.num(p$age)), id.vars=c('charcode', 'age', 'age.num'),
+				what=indicators[i])
+		dataB[[i]] <- cbind(dataB[[i]], sex=names(indicators)[i])
+	}	
+	data <- wpp.by.year(if(length(indicators) > 1) rbind(dataB[[1]], dataB[[2]]) else dataB[[1]], year)
 	wpp.by.countries(data, countries)
+}
+
+get.age.profile.fert <- function(year, countries){
+	if.not.exists.load('percentASFR')
+	asfr <- wpp.data.env[['percentASFR']]
+	asfr <- asfr[,-which(is.element(colnames(asfr), c('country', 'name')))]
+	asfrm <- wpp.by.countries(wpp.by.year(
+				merge.with.un.and.melt(cbind(asfr, age.num=.get.age.num(asfr$age)), id.vars=c('charcode', 'age', 'age.num')), year), countries)
+	tfert <- fert()
+	tfert <- cbind(country_code=tfert$country_code, tfert[,.get.year.cols.idx(tfert)])
+	tfertm <- wpp.by.countries(wpp.by.year(
+				merge.with.un.and.melt(tfert, id.vars='charcode'), year), countries)
+	colnames(tfertm)[2] <- 'tfr'
+	data <- merge(asfrm, tfertm, by='charcode')
+	data <- ddply(data, 'charcode', mutate, value = get("value")/100. * get("tfr"))
+	data$tfr <- NULL
+	data
+}
+
+get.indicator.title <- function(indicator, sex.mult=c(), sex=c(), age.mult=c(), age=c()) {
+	indicator <- as.numeric(indicator)
+	title <- names(wpp.data.env$indicators)[indicator]
+	if (!ind.is.by.age(indicator)) return(title)
+	if(ind.no.age.sum(indicator)){
+		sex.string <- paste('sex: ', sex, sep='')
+		age.string <- paste('age: ', age, sep='')
+	} else { # multiple sex and age groups possible
+		sex.string <- paste('sex: ', if(length(sex.mult)>1) 'Both' else sex.mult, sep='')
+		age.string <- paste('age: ', paste(age.mult, collapse=', '), sep='')
+	}
+	return(paste(title, sex.string, age.string, sep='; '))
+}
+
+.get.age.num <- function(age) {
+	aorder <- .get.age.order()
+	#browser()
+	if(any(!is.element(age, names(aorder)))) return(age)
+	aorder[as.character(age)]
+} 
+.get.age.order <- function() {
+	age <- c(paste(seq(0, by=5, length=20), seq(4, by=5, length=20), sep='-'), '100+')
+	age.array <- 1:21
+	names(age.array) <- age
+	age.array
 }
