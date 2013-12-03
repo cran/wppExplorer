@@ -1,8 +1,8 @@
-a3d1540ba4a7499f3e76dfad95a8a7ec *ChangeLog
-b38ed43dc957d5f44e995a94e8d2bd0c *DESCRIPTION
+b25d8f0fdc3654ecffdf01df68efd319 *ChangeLog
+3d50a04455feb60a689d7a51b16425c3 *DESCRIPTION
 245ff5b3c79bad0680bf4b58f5ed81ff *NAMESPACE
 eb493a2304626b437b4127e7c33338a4 *R/global.R
-5740525a81c7f0b84b7e26d919309ca7 *R/wpp.R
+d7a1a74852a00ecab5cca843d1a571d7 *R/wpp.R
 83b4cc643012c5752eabf85b8fe3655e *data/iso3166.R
 b58fd80f83433eb30945ce85498e38be *data/iso3166.txt
 73d85a49f0b440090e90a8d20329569c *inst/explore/server.R
@@ -12,7 +12,7 @@ b35b538c9e8bb73b0e965565056f296a *man/iso3166.Rd
 050297e5dc078beff06c44b1123aca95 *man/wpp.by.country.Rd
 6c169042c5c2d417f372de20773f0b0d *man/wpp.explore.Rd
 451a0beadb14629748125c13a49fa13b *man/wpp.indicator.Rd
-6e9340c919872628cb1b43abf7ee0570 *man/wppExplorer-package.Rd
+6aff38e8978f3369d8ff383be6de5fa1 *man/wppExplorer-package.Rd
 b93106fc28bc1a7363dd5a202efa5997 *man/wpp_year.Rd
-a0e8ca08fad22662369c713bff0fe2dd *tests/run_tests.R
-11f4b793c000eb723d3f0ffcced26d09 *tests/test_functions.R
+2c6ad8cde8b0ed18b5c8f337135719f4 *tests/run_tests.R
+18048b6bb890ed6305185e93d6812892 *tests/test_functions.R
