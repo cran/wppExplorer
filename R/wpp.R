@@ -2,7 +2,7 @@ utils::globalVariables("wpp.data.env")
 
 wpp.explore <- function(wpp.year=NULL) {
 	if(!is.null(wpp.year)) set.wpp.year(wpp.year)
-	shiny::runApp(system.file('explore', package='wppExplorer'))
+	shiny::runApp(system.file('explore', package='wppExplorer'), host = getOption("shiny.host", "0.0.0.0"))
 }
 
 wpp.explore3d <- function(wpp.year=NULL) {
@@ -331,18 +331,30 @@ lookupByIndicator.mchart <- function(indicator, ...) {
 }
 
 .get.pi.name <- function(x) c('80', '95', 'half.child')[x]
+.get.pi.name.for.label <- function(x) c('80%', '95%', '1/2child')[x]
 
 getUncertainty <- function(indicator, which.pi, bound='low', sex.mult=c(), sex=c(), age.mult=c(), age=c()) {
 	indicator <- as.numeric(indicator)
 	if(!ind.is.low.high(indicator)) return(NULL)
+	if(length(which.pi) == 0) return(NULL)
 	fun <- paste(ind.fun(indicator), 'ci', sep='.')
-	pi.name <-.get.pi.name(as.integer(which.pi))
-	lookup.name <- paste(fun, pi.name, bound, sep='.')
-	if(!is.null(wpp.data.env[[lookup.name]])) return(wpp.data.env[[lookup.name]])
-	data <- wpp.indicator(fun, pi.name, bound=bound, sexm=sex.mult, sex=sex, agem=age.mult, age=age)
-	if(!ind.is.by.age(indicator))
-  		wpp.data.env[[lookup.name]] <- data
-	data
+	all.data <- NULL
+	for(i in 1:length(which.pi)) {
+		pi.idx <- as.integer(which.pi[i])
+		pi.name <-.get.pi.name(pi.idx)
+		lookup.name <- paste(fun, pi.name, bound, sep='.')
+		if(!is.null(wpp.data.env[[lookup.name]])) data <- wpp.data.env[[lookup.name]]
+		else {
+			data <- wpp.indicator(fun, pi.name, bound=bound, sexm=sex.mult, sex=sex, agem=age.mult, age=age)
+			if(is.null(data)) next
+			if(!ind.is.by.age(indicator))
+  				wpp.data.env[[lookup.name]] <- data
+  		}
+  		colnames(data) <- sub('value', paste0('value.', pi.idx), colnames(data))
+  		all.data <- if(is.null(all.data)) data 
+  					else merge(all.data, data, by=c('charcode', 'Year'))
+  	}
+	all.data
 }
 
 .get.year.col.names <- function(col.names) {
@@ -455,11 +467,11 @@ get.pyramid.data <- function(year, countries, which.pi=NULL, bound=NULL, indicat
 		name.obs <- indicators
 		if(wpp.data.env$package=='wpp2012' && load.pred) name.preds <- paste(indicators, 'projMed', sep='')
 	} else { #PIs
-		if(wpp.data.env$package=='wpp2012' && .get.pi.name(as.integer(which.pi)) == 'half.child') 
+		# only +-half.child available
+		if(wpp.data.env$package=='wpp2012' && 'half.child' %in% .get.pi.name(as.integer(which.pi))) 
 			name.obs <- paste(indicators, 'proj', capitalize(bound), sep='')
 	}
 	if(all(is.null(c(name.preds, name.obs)))) return(NULL)
-	#browser()
 	dataB <- list()
 	for(i in 1:min(2,length(indicators))) {
 		p <- load.and.merge.datasets(name.obs[i], name.preds[i], by=c('country_code', 'age'), remove.cols=c('country', 'name'))

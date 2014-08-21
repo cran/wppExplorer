@@ -29,10 +29,11 @@ shinyUI(pageWithSidebar(
     tags$head(
          		#tags$style(type="text/css", ".jslider { max-width: 50px; }"),
          		#tags$style(type='text/css', ".well { padding: 0px; margin-bottom: 5px; max-width: 100px; }"),
-	tags$style(type='text/css', ".span4 { max-width: 270px; }")
-),
+		tags$style(type='text/css', ".span4 { max-width: 270px; }")
+	),
     uiOutput('yearUI'),
-    selectInput('indicator', 'Indicator:', wppExplorer:::wpp.data.env$indicators),
+    hr(),
+    selectInput('indicator', h5('Indicator:'), wppExplorer:::wpp.data.env$indicators),
     conditionalPanel(condition="input.indicator > 15",
     	tags$head(tags$style(type="text/css", "#selagesmult { height: 150px; width: 70px}"),
     			  tags$style(type="text/css", "#selages { height:25px; width: 70px}"),
@@ -45,28 +46,38 @@ shinyUI(pageWithSidebar(
     		col(3, uiOutput('ageselection'))
     	)
     ),
-    selectInput('uncertainty', 'Uncertainty:', structure(as.character(1:3), names=c('80%', '95%', '+-1/2child'))),
-    textOutput('indicatorDesc')
+    textOutput('indicatorDesc'),
+    hr(),
+    selectInput('uncertainty', h5('Uncertainty:'), structure(as.character(1:3), names=c('80%', '95%', '+-1/2child')), 
+    			multiple=TRUE, selected=1),
+    textOutput('uncertaintyNote'),
+    hr(),
+    HTML("<small><b>Data Source:</b> United Nations, Department of Economic and Social Affairs, Population Division: <a href='http://esa.un.org/unpd/wpp'>World Population Prospects</a>. <a href='http://esa.un.org/unpd/ppp'>Probabilistic projections</a> based on <a href='http://www.pnas.org/content/early/2012/08/13/1211452109.abstract'>Raftery et al. (2012, PNAS)</a></small>")
   ),
   mainPanel(
     tabsetPanel(
       tabPanel('Map',
 		textOutput('mapyear'),
+		hr(),
 		geochart('map'),
 		#htmlOutput('mapgvis'),
+		hr(),
 		conditionalPanel(condition='input.map_selection',
 				checkboxInput('normalizeCountryPlot', 'Fixed scale', FALSE),
 				plotOutput('countryPlot', height='300px'))
       ),
-      tabPanel('Data', 
-		textOutput('year1'),
-		checkboxInput('includeAggr1', 'Include Aggregations', FALSE),
-      	tableOutput('table')
-      ),
+      #tabPanel('Data', 
+		#textOutput('year1'),
+		#checkboxInput('includeAggr1', 'Include Aggregations', FALSE),
+      	#tableOutput('table')
+      #),
       tabPanel('Sortable Data', 
-		textOutput('year2'),
-		checkboxInput('includeAggr2', 'Include Aggregations', FALSE),
-      	tableOutput('stable')
+      	flowLayout(
+			textOutput('year2'),
+			checkboxInput('includeAggr2', 'Include Aggregations', FALSE)
+		),
+		hr(),
+      	dataTableOutput('stable')
       ),
       tabPanel('Trends, Age profiles & Pyramids',
   		tags$head(
@@ -101,6 +112,7 @@ shinyUI(pageWithSidebar(
  		),
  	tabPanel('Histogram',
  		textOutput('year3'),
+ 		hr(),
       	checkboxInput('fiXscaleHist', 'Fixed x-axis over time', TRUE),
       	plotOutput('hist')
     ),

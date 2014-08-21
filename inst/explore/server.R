@@ -25,7 +25,7 @@ shinyServer(function(input, output, session) {
   })
   
   rangeForAllYears <- reactive({
-    range(indicatorData()$value)
+    range(indicatorData()$value, na.rm=TRUE)
   })
   
   pyramid.data <- reactive({
@@ -78,19 +78,23 @@ shinyServer(function(input, output, session) {
     	}
     }
     #print(c('slider2: ', value, yearRange, data.env()$year.range, input$year))
-    sliderInput('year', 'Year', format="####", 
+    sliderInput('year', h5('Year:'), format="####", 
     			animate=TRUE,
                 min=yearRange[1], max=yearRange[2], value = value, step=5)
   })
   
   output$indicatorDesc <- renderText({
   	wppExplorer:::ind.definition(as.integer(input$indicator))
-    #as.character(Series[Series$SeriesCode == input$indicator,]$Long.definition)
-    #""
   })
+  
+  output$uncertaintyNote <- renderText({
+  	if(wppExplorer:::ind.is.low.high(as.integer(input$indicator)) && wppExplorer:::get.wpp.year()>2010) return("")
+    "No uncertainty available for this indicator."
+  })
+  
   year.output <- reactive(paste('Year:', input$year))
   output$mapyear <- renderText(year.output())
-  output$year1 <- renderText(year.output())
+  #output$year1 <- renderText(year.output())
   output$year2 <- renderText(year.output())
   output$year3 <- renderText(year.output())
   
@@ -107,13 +111,13 @@ shinyServer(function(input, output, session) {
     country.codes <- get.country.charcodes()
     df <- df[df$charcode %in% country.codes,]
     #inddata <- indicatorData()
-    #inddata <- inddata[inddata$charcode %in% country.codes, 'value']    
-    list(data = df
+    #inddata <- inddata[inddata$charcode %in% country.codes, 'value']
+    list(data = df#,
          #options = list( # this doesnt seem to work to have fixed color scale 
-         #  colorAxis = list(
-         #    minValue = min(inddata),
-         #    maxValue = max(inddata)
-         #  )
+           #colorAxis = list(
+             #minValue = min(inddata),
+             #maxValue = max(inddata)
+           #)
          #)
     )
   })
@@ -144,47 +148,64 @@ shinyServer(function(input, output, session) {
     df <- wpp.by.country(data, input$map_selection)
     low <- wpp.by.country(data.l, input$map_selection)
     high <- wpp.by.country(data.h, input$map_selection)
-    ylim <- range(c(df$value, low$value, high$value))
-    if (input$normalizeCountryPlot)
-      ylim <- range(c(data$value, data.l$value, data.h$value)) 
+    idx.col.val <- grep('\\.', colnames(low))
+    ylim <- range(c(df$value, low[,idx.col.val], high[,idx.col.val]), na.rm=TRUE)
+    if (input$normalizeCountryPlot) {
+    	idx.col.val.all <- grep('\\.', colnames(data.l))
+    	ylim <- range(c(data$value, data.l[,idx.col.val.all], data.h[,idx.col.val.all]), na.rm=TRUE)
+    }
     plot(df, type='n', ylim=ylim)
     title(main = paste(data.env()$iso3166$name[data.env()$iso3166$charcode==input$map_selection]))
     lines(df$Year, df$value, type='l')
     if(!is.null(low)) {
     	ipres <- which.max(df$Year[df$Year<min(low$Year)])
-    	lines(c(df$Year[ipres], low$Year), c(df$value[ipres],low$value), lty=2)
-    	lines(c(df$Year[ipres], high$Year),c(df$value[ipres], high$value), lty=2)
+    	for(i in 3:1) {
+			idx <- grep(paste0('\\.',i), colnames(low))
+			if(length(idx)==0) next
+    		lines(c(df$Year[ipres], low$Year), c(df[ipres, 'value'], low[,idx]), lty=i+1)
+    		lines(c(df$Year[ipres], high$Year),c(df[ipres, 'value'], high[,idx]), lty=i+1)
+    	}
     }
     abline(v=input$year, col=3, lty=3)
   })
 	
- output$table <- renderTable({
- 	iso <- data.env()$iso3166
- 	if(!input$includeAggr1) iso <- iso[iso$is.country,]
- 	data <- merge(data(), iso[,c('charcode', 'name')], by='charcode')#
-	data[,c('charcode', 'name', 'value')]
- }, include.rownames = FALSE, include.colnames = FALSE)
+ # output$table <- renderTable({
+ 	# iso <- data.env()$iso3166
+ 	# if(!input$includeAggr1) iso <- iso[iso$is.country,]
+ 	# data <- merge(data(), iso[,c('charcode', 'name')], by='charcode')#
+	# data[,c('charcode', 'name', 'value')]
+ # }, include.rownames = FALSE, include.colnames = FALSE)
   
-  output$stable <- renderGvis({
+  output$stable <- renderDataTable({ #renderGvis({
   	year.data <- data()
   	if(nrow(year.data)==0) invalidateLater(1000, session)
   	iso <- data.env()$iso3166
  	if(!input$includeAggr2) iso <- iso[iso$is.country,]
   	year.data <- merge(year.data, iso[,c('charcode', 'name')], by='charcode')
   	low <- indicatorDataLow()
-  	data <- cbind(year.data[,c('charcode', 'name', 'value')], rank=rank(year.data$value))
-  	if(!is.null(low)) {
+  	data <- cbind(year.data[,c('charcode', 'name', 'value')], rank=rank(year.data$value)) # add rank column
+  	if(!is.null(low)) { # add intervals
   		data.l <- wpp.by.year(low, input$year)
-  		 if(nrow(data.l) > 0) {  		
+  		 if(nrow(data.l) > 0) {		
     		data.h <- wpp.by.year(indicatorDataHigh(), input$year)
-  			colnames(data.l)[colnames(data.l)=='value'] <- 'low'
+    		for(i in 1:3) {
+    			colnames(data.l) <- sub(paste0('value.',i), paste('low', wppExplorer:::.get.pi.name.for.label(i)), colnames(data.l))
+    			colnames(data.h) <- sub(paste0('value.',i), paste('high', wppExplorer:::.get.pi.name.for.label(i)), colnames(data.h))
+    		}
+    		ncoldata <- ncol(data)
   			data <- merge(data, data.l, by='charcode')
-  			colnames(data.h)[colnames(data.h)=='value'] <- 'high'
   			data <- merge(data, data.h, by='charcode')
+  			# rearrange, so that columns corresponding to (low, high) pairs is always beside one another
+  			if (ncol(data.l) > 2) {
+  				l <- ncol(data.l) - 1
+  				col.idx <- matrix(1:(2*l), nrow=l)
+  				col.idx <- as.vector(t(col.idx))
+  				data <- data[,c(1:ncoldata, col.idx+ncoldata)]
+  			}
   		}
   	}
   	colnames(data)[1] <- 'code'
-  	gvisTable(data, options=list(width=600, height=600, page='disable', pageSize=198))
+	data
   	})
   	
   output$hist <- renderPlot({
@@ -192,9 +213,9 @@ shinyServer(function(input, output, session) {
   	if(is.null(data) || nrow(data)<=0) return(NULL)
   	# filter out aggregations
   	data <- merge(data[,c('charcode', 'value')], data.env()$iso3166[data.env()$iso3166$is.country, 'charcode', drop=FALSE], by='charcode')$value
-  	xlim <- if(input$fiXscaleHist) rangeForAllYears() else range(data)
+  	xlim <- if(input$fiXscaleHist) rangeForAllYears() else range(data, na.rm=TRUE)
   	binw <- diff(xlim)/20
-    print(qplot(data()$value, binwidth=binw, xlim=c(xlim[1]-binw/2, xlim[2]+binw/2), xlab='value'))
+    qplot(data()$value, binwidth=binw, xlim=c(xlim[1]-binw/2, xlim[2]+binw/2), xlab='value')
   })
         
   output$ageselection <- renderUI({
@@ -215,7 +236,7 @@ shinyServer(function(input, output, session) {
   		name <- 'selagesmult'
   		selected <- ages[1]
   	}
-  	selectInput(name, 'Age:', ages, multiple=multiple, selected=selected)
+  	selectInput(name, 'Age:', ages, multiple=multiple, selected=selected, selectize = FALSE)
 	})
 	
 	output$sexselection <- renderUI({
@@ -226,10 +247,10 @@ shinyServer(function(input, output, session) {
   			name <- 'indsex'
   		} else {
   			multiple <- TRUE
-  			selected <- names(choices)
+  			selected <- choices
   			name <- 'indsexmult'
   		}
-  		selectInput(name, 'Sex:', choices=choices, selected=selected, multiple=multiple)
+  		selectInput(name, 'Sex:', choices=choices, selected=selected, selectize = FALSE, multiple=multiple)
 	})
 	
   output$cselection <- renderUI({
@@ -240,12 +261,13 @@ shinyServer(function(input, output, session) {
   		codes,
   		names = names
   	)
-  	do.call('selectInput', list('seltcountries', 'Select countries/areas:', countries, multiple=TRUE, 
-  					selected=names[1]))
+  	do.call('selectInput', list('seltcountries', 'Select countries/areas:', countries, multiple=TRUE, selectize = FALSE,
+  					selected=countries[1] #names[1]
+  					))
 	})
 	
   cast.profile.data <- function(data) {
-    vrange <- range(data$value)
+    vrange <- range(data$value, na.rm=TRUE)
     hrange <- if(is.element('15-19', data$age)) c(0, length(unique(data$age))) else range(data$age)
     #browser()
     data <- dcast(data, age.num + age ~ charcode, mean)
@@ -257,8 +279,8 @@ shinyServer(function(input, output, session) {
   filter.trend.data <- function(data, countries, cast=TRUE){
   	data <- wpp.by.countries(data, countries)
     if(is.null(data) || nrow(data) <= 0) return(NULL)
-   	hrange <- range(data$Year)
-    vrange <- range(data$value)
+   	hrange <- range(data$Year, na.rm=TRUE)
+    vrange <- range(data[,grep('value', colnames(data))], na.rm=TRUE)
     if(cast)
     	data <- dcast(data, Year ~ charcode, mean)
     list(casted=data, hrange=hrange, vrange=vrange)
@@ -327,8 +349,6 @@ shinyServer(function(input, output, session) {
 	}
 	if(is.null(data)) return(NULL)
 	data <- cast.profile.data(data)
-	#browser()
-	#print(data)
     list(data = wppExplorer:::preserveStructure(data$casted),
          options = list(
            hAxis = list(slantedText=fun!='mortagesex',
@@ -358,17 +378,35 @@ shinyServer(function(input, output, session) {
   	low <- get.trends.low()
   	if(!is.null(low)) {
   		high <- get.trends.high()
+  		colnames(low$casted) <- sub('value', 'low', colnames(low$casted))
+  		colnames(high$casted) <- sub('value', 'high', colnames(high$casted))
   		low.high <- merge(low$casted, high$casted, by=c('charcode', 'Year'))
-  		colnames(low.high)[3:4] <- c('low', 'high')
-  		min.year <- min(low.high$Year)
+  		#browser()
+  		#colnames(low.high)[3:4] <- c('low', 'high')
+  		min.year <- min(low.high$Year, na.rm=TRUE)
   		data <- merge(data, low.high, by=c('charcode', 'Year'), all=TRUE)
   		idx <- which(data$Year == min.year-5)
-  		data$low[idx] <- data$value[idx]
-  		data$high[idx] <- data$value[idx]
+  		for (col in grep('low|high', colnames(data)))
+  			data[idx,col] <- data$value[idx]
   	}
-  	g <- ggplot(data, aes(x=Year,y=value,colour=charcode)) + geom_line() + theme(legend.title=element_blank())
-  	if(!is.null(low)) g <- g + geom_ribbon(aes(ymin=low, ymax=high, linetype=NA), alpha=0.3)
-  	print(g)
+  	g <- ggplot(data, aes(x=Year,y=value,colour=charcode, fill=charcode)) + geom_line() + theme(legend.title=element_blank())
+  	if(!is.null(low)) {
+  		line.data <- NULL
+  		for(i in 3:1) {
+  			idx <- grep(paste0('\\.',i), colnames(data))
+  			if(length(idx)==0) next
+  			g <- g + geom_ribbon(aes_string(ymin=colnames(data)[idx][1], ymax=colnames(data)[idx][2], 
+  											fill="charcode", colour="charcode", linetype=NA), alpha=c(0.3, 0.2, 0.1)[i])
+  			if(!is.null(line.data)) colnames(line.data) <- c('charcode', 'Year', 'low', 'high', 'variant')
+  			line.data <- rbind(line.data, setNames(cbind(data[,c(1,2,idx)], wppExplorer:::.get.pi.name.for.label(i)), colnames(line.data)))		
+  		}
+  		colnames(line.data) <- c('charcode', 'Year', 'low', 'high', 'variant')
+		
+  		g <- g + geom_line(data=line.data, aes(y=low, linetype=variant, colour=charcode))
+  		g <- g + geom_line(data=line.data, aes(y=high, linetype=variant, colour=charcode))
+  		g <- g + scale_linetype_manual(values=c("80%"=2, '1/2child'=4, "95%"=3), na.value=0)
+  	}
+  	g
   })
   
   .is.pyramid.indicator <- function() {
@@ -400,34 +438,44 @@ shinyServer(function(input, output, session) {
   		if(proportion) {
 			#browser()
 			which.pi <- wppExplorer:::.get.pi.name(as.integer(input$uncertainty))
-  			tpop <- wppExplorer::wpp.indicator('tpop.ci', which.pi=which.pi, bound='low')
-  			low <- .get.prop.data(low, tpop)
-  			lowval <- low$value
-  			tpop <- wppExplorer::wpp.indicator('tpop.ci', which.pi=which.pi, bound='high')
-  			high <- .get.prop.data(high, tpop)
-  			low$value <- pmin(low$value, high$value)
-  			high$value <- pmax(high$value, lowval)
+			which.pi <- if('half.child' %in% which.pi) 'half.child' else NULL # currently only half child for pyramid available
+			if(!is.null(which.pi)) {
+  				tpop <- wppExplorer::wpp.indicator('tpop.ci', which.pi=which.pi, bound='low')
+  				low <- .get.prop.data(low, tpop)
+  				lowval <- low$value
+  				tpop <- wppExplorer::wpp.indicator('tpop.ci', which.pi=which.pi, bound='high')
+  				high <- .get.prop.data(high, tpop)
+  				low$value <- pmin(low$value, high$value, na.rm=TRUE)
+  				high$value <- pmax(high$value, lowval, na.rm=TRUE)
+  			} else low <- NULL
   		}
-  		low.high <- merge(low, high, by=c('charcode', 'age', 'age.num', 'sex'), sort=FALSE)
-  		colnames(low.high)[5:6] <- c('low', 'high')
-  		data <- merge(data, low.high, all=TRUE, sort=FALSE)
-	} else low <- NULL
+  		if(!is.null(low)) {
+  			low.high <- merge(low, high, by=c('charcode', 'age', 'age.num', 'sex'), sort=FALSE)
+  			colnames(low.high)[5:6] <- c('low', 'high')
+  			data <- merge(data, low.high, all=TRUE, sort=FALSE)
+  		}
+	}
   	data <- data[order(data$age.num),]
   	data
   }
   
   .print.pyramid <- function(data) {
-  	data.range <- range(data$value)
+  	data.range <- range(data$value, na.rm=TRUE)
   	g <- ggplot(data, aes(y=value, x=reorder(age, age.num), group=charcode, colour=charcode)) + geom_line(subset=.(sex=='F')) + geom_line(subset=.(sex=='M'), aes(y=-1*value)) + scale_x_discrete(name="") + scale_y_continuous(labels=function(x)abs(x)) + coord_flip() + ggtitle(input$year) + theme(legend.title=element_blank())
   	g <- g + geom_text(data=NULL, y=-data.range[2]/2, x=20, label="Male", colour='black')
   	g <- g + geom_text(data=NULL, y=data.range[2]/2, x=20, label="Female", colour='black')
   	g <- g + geom_hline(yintercept = 0)
-  	#browser()
   	if(is.element('low', colnames(data))) {
   		g <- g + geom_ribbon(subset=.(sex=='F'), aes(ymin=low, ymax=high, linetype=NA), alpha=0.3)
   		g <- g + geom_ribbon(subset=.(sex=='M'), aes(ymin=-high, ymax=-low, linetype=NA), alpha=0.3)
+  		line.data <- cbind(data, variant=wppExplorer:::.get.pi.name.for.label(3)) # only half-child variant available 
+  		g <- g + geom_line(data=line.data, subset=.(sex=='F'), aes(y=low, linetype=variant, colour=charcode, group=charcode)) # female low
+  		g <- g + geom_line(data=line.data, subset=.(sex=='F'), aes(y=high, linetype=variant, colour=charcode, group=charcode)) # female high
+  		g <- g + geom_line(data=line.data, subset=.(sex=='M'), aes(y=-low, linetype=variant, colour=charcode, group=charcode)) # male low
+  		g <- g + geom_line(data=line.data, subset=.(sex=='M'), aes(y=-high, linetype=variant, colour=charcode, group=charcode)) # male high
+        g <- g + scale_linetype_manual(values=c("80%"=2, '1/2child'=4, "95%"=3), na.value=0)
   	}
-  	print(g)
+  	g
   }
   
   output$pyramids <- renderPlot({
