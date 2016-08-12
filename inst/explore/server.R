@@ -5,6 +5,37 @@ library(plyr)
 library(ggplot2)
 
 shinyServer(function(input, output, session) {
+	ind.has.uncertainty <- function(ind)
+		((wppExplorer:::ind.is.low.high(ind) || wppExplorer:::ind.is.half.child(ind)) && 
+  	  					wppExplorer:::get.wpp.year()>2010)
+  	  					
+  observe({
+		# disable log scale button if migration indicator (because of negatives)
+	  shinyjs::toggleState("trend.logscale", !has.negatives.indicator())
+	})
+  observe({
+  	  ind.num <- as.integer(input$indicator)
+  	  has.uncertainty <- ind.has.uncertainty(ind.num)
+	  shinyjs::toggle(id = "uncertainty", anim = TRUE, condition=has.uncertainty)
+	  if(has.uncertainty) {
+	  	selected.choices <- input$uncertainty
+	  	available.choices <- structure(as.character(1:3), names=c('80%', '95%', '+-1/2child'))
+	  	uncertainty.choices <- c()
+	  	if(wppExplorer:::ind.is.low.high(ind.num)) 
+	  		uncertainty.choices <- available.choices[1:2]
+	  	if(wppExplorer:::ind.is.half.child(ind.num))
+	  		uncertainty.choices <- c(uncertainty.choices, available.choices[3])
+	  	selected <- uncertainty.choices[uncertainty.choices %in% selected.choices]
+	  	updateSelectInput(session, 'uncertainty', choices=uncertainty.choices, 
+	  		selected=if(length(selected) > 0) selected else uncertainty.choices[1])
+	  }
+  })
+  observe({
+  	# switch log scale button to FALSE if migration or growth indicator (because of negatives)
+  	 if(input$trend.logscale && has.negatives.indicator()) 
+  	   updateCheckboxInput(session, "trend.logscale", value = FALSE)  	
+  }, priority=10)
+
   indicatorData <- reactive({
     wppExplorer:::lookupByIndicator(input$indicator, input$indsexmult, input$indsex, input$selagesmult, input$selages)
   })
@@ -12,6 +43,8 @@ shinyServer(function(input, output, session) {
 	indicator.fun <- reactive({
 		wppExplorer:::ind.fun(as.integer(input$indicator))
 	})
+
+   has.negatives.indicator <- function() indicator.fun() %in% c('mig', 'migrate', 'popgrowth')
 	
    indicatorDataLow <- reactive({
     wppExplorer:::getUncertainty(input$indicator, input$uncertainty, 'low', input$indsexmult, input$indsex, input$selagesmult, input$selages)
@@ -94,7 +127,7 @@ shinyServer(function(input, output, session) {
   })
   
   output$uncertaintyNote <- renderText({
-  	if(wppExplorer:::ind.is.low.high(as.integer(input$indicator)) && wppExplorer:::get.wpp.year()>2010) return("")
+  	if(ind.has.uncertainty(as.integer(input$indicator))) return("")
     "No uncertainty available for this indicator."
   })
   
@@ -408,8 +441,7 @@ shinyServer(function(input, output, session) {
   	data <- get.trends.nocast()
   	if(is.null(data)) return(data)
   	data <- data$casted
-  	low <- NULL
-  	if (!input$trend.logscale) low <- get.trends.low()
+  	low <- get.trends.low()
   	if(!is.null(low)) {
   		high <- get.trends.high()
   		colnames(low$casted) <- sub('value', 'low', colnames(low$casted))
@@ -431,7 +463,7 @@ shinyServer(function(input, output, session) {
   		} else data <- data.zoom
   	}
   	g <- ggplot(data, aes(x=Year,y=value,colour=charcode, fill=charcode)) + geom_line() + theme(legend.title=element_blank())
-  	if (input$trend.logscale) g <- g + coord_trans(y="log2")
+  	if (input$trend.logscale && !has.negatives.indicator()) g <- g + coord_trans(y="log2")
   	isolate(ggplot.data$trends <- data)
   	
   	if(!is.null(low)) {
@@ -474,15 +506,18 @@ shinyServer(function(input, output, session) {
 	if(nrow(selected) == 0) return(" ")
 	paste0("Year = ", selected$Year, ', Value = ', round(selected$value,3), ", Country: ", selected$name)
 	})
-		
-  .is.pyramid.indicator <- function() {
-  	 if(!indicator.fun() %in% c('tpop', 'tpopF', 'tpopM', 'popagesex')) {
+	
+  .is.pyramid.indicator	<- function()
+      return(indicator.fun() %in% c('tpop', 'tpopF', 'tpopM', 'popagesex'))
+	
+  .plot.no.pyramid <- function() {
+  	 if(!.is.pyramid.indicator()) {
   		df <- data.frame(x=0, y=0, lab='No pyramid data for this indicator.')
   		g <- ggplot(df, aes(x=x, y=y, label=lab)) + geom_text() + scale_y_continuous(name='') + scale_x_continuous(name='')
   		print(g)
-  		return(FALSE)
+  		return(TRUE)
   	}
-  	TRUE
+  	FALSE
   }
   .get.prop.data <- function(data, tpop) {
 	tpop <- wppExplorer::wpp.by.countries(wppExplorer::wpp.by.year(tpop, input$year), input$seltcountries)
@@ -556,7 +591,7 @@ shinyServer(function(input, output, session) {
   
   pyramid.ranges <- reactiveValues(age=NULL, value=NULL)
   output$pyramids <- renderPlot({
-  	if(!.is.pyramid.indicator()) return()
+  	if(.plot.no.pyramid()) return()
   	reset.pyramid.data()
 	#data <- .get.pyramid.data(proportion=input$proppyramids)
 	data <- .get.pyramid.data()
@@ -588,7 +623,8 @@ shinyServer(function(input, output, session) {
   })
   
   output$pyramid_selected <- renderText({
-  	if(is.null(input$pyramid_values)) return(" ")
+  	if(!.is.pyramid.indicator()) return(" ")
+  	if(length(input$pyramid_values)==0) return(" ")
   	selected <- nearPoints(ggplot.data$pyramid, input$pyramid_values, xvar='value', yvar='age.num', maxpoints = 1, threshold=10)
 	if(nrow(selected) == 0) return(" ")
 	paste0(if(selected$value < 0) "Male " else "Female ", selected$age, ', Value = ', round(abs(selected$value),3), ", Country: ", selected$name)

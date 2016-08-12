@@ -50,7 +50,7 @@ set.wpp.year <- function(wpp.year) {
 	for (item in ls(wpp.data.env)) {
 		if(!(item %in% c('indicators'))) rm(list=item, envir=wpp.data.env)
 	}
-	data('iso3166', envir=wpp.data.env)
+	data('iso3166', envir=wpp.data.env, package="wppExplorer")
 	wpp.data.env$package <- paste('wpp', wpp.year, sep='')
 	# Filter out non-used countries
 	do.call('data', list("popM", package=wpp.data.env$package, envir=wpp.data.env))
@@ -58,7 +58,7 @@ set.wpp.year <- function(wpp.year) {
 	cat('\nDefault WPP package set to', wpp.data.env$package,'.\n')
 }
 
-get.wpp.year <- function() as.integer(substr(wpp.data.env$package, 4,8))
+get.wpp.year <- function() as.integer(substr(wpp.data.env$package, 4,7))
  
 tpop <- function(...) {
 	# Create a dataset of total population
@@ -378,7 +378,7 @@ lookupByIndicator.mchart <- function(indicator, ...) {
 
 getUncertainty <- function(indicator, which.pi, bound='low', sex.mult=c(), sex=c(), age.mult=c(), age=c()) {
 	indicator <- as.numeric(indicator)
-	if(!ind.is.low.high(indicator)) return(NULL)
+	if(!ind.is.low.high(indicator) && !ind.is.half.child(indicator)) return(NULL)
 	if(length(which.pi) == 0) return(NULL)
 	fun <- paste(ind.fun(indicator), 'ci', sep='.')
 	all.data <- NULL
@@ -462,6 +462,7 @@ ind.settings <- function() attr(wpp.data.env$indicators, 'settings')
 ind.fun <- function(indicator) rownames(ind.settings())[indicator]
 ind.is.by.age <- function(indicator) ind.settings()[indicator, 'by.age']
 ind.is.low.high <- function(indicator) ind.settings()[indicator, 'low.high']
+ind.is.half.child <- function(indicator) ind.settings()[indicator, 'half.child']
 ind.no.age.sum <- function(indicator) ind.settings()[indicator, 'no.age.sum']
 ind.sum.in.table <- function(indicator) ind.settings()[indicator, 'sum.in.table']
 ind.mid.years <- function(indicator) ind.settings()[indicator, 'mid.years']
