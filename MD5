@@ -1,7 +1,7 @@
-31fa08ba08f1c646e3b33321dac2f9d6 *ChangeLog
-4727703f4ab510a1f338e10bf5628556 *DESCRIPTION
+41cbe8221a78522537e94b043d5490f3 *ChangeLog
+4390a272aeebd115035e825d3bab928e *DESCRIPTION
 96e470a6b9eabc4124c394ab4a0b4535 *NAMESPACE
-aed23ac7a3cecc34c0f704dd06fdcaa9 *R/global.R
+cbeda086a53774ff634309f6446a983f *R/global.R
 a5a46a9ae0ac8c08132f7c1ee3d8ffbb *R/wpp.R
 138ca62165f235f166fdba308a04a712 *data/iso3166.R
 05d7368e6ade3936fcb3e06f0cc03d99 *data/iso3166.txt
@@ -15,8 +15,8 @@ bce006fe7267b112022404b841ea4031 *inst/explore/www/geochart.js
 050297e5dc078beff06c44b1123aca95 *man/wpp.by.country.Rd
 30a03324a294d811c6463b9c3d2fce4e *man/wpp.explore.Rd
 77f4f46e75c8759c2f34f44302dea7ec *man/wpp.indicator.Rd
-cd8663493ac8d915776f65d972f2980e *man/wppExplorer-package.Rd
+da677248f57799d672919755c0936e44 *man/wppExplorer-package.Rd
 6dd7c237736feaf2f3ec682640d9df08 *man/wpp_year.Rd
 2f78903b3e0f3a5fc1641b4fbb476dfa *tests/testthat.R
-7ca7a27400024a818b441f02fddc28ae *tests/testthat/test-indicators.R
+36d3c157e8e9b538288efa31471e328f *tests/testthat/test-indicators.R
 532751385427967f0ea3e877d5a87f4d *tests/testthat/test-wpp-year.R
