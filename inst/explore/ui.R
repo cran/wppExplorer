@@ -84,7 +84,8 @@ shinyUI(
       			column(6, checkboxInput('includeAggr2', 'Include Aggregations', FALSE))
       		),
       		fluidRow(
-      	 		column(6, offset=5, textOutput('year2'))
+      	 		column(3, offset=5, textOutput('year2')),
+      	 		column(1, offset=2, downloadLink("download", "Download", class = "fa fa-download alignright"))
       	 	),
 			hr(),
       		DT::dataTableOutput('stable')
@@ -147,12 +148,13 @@ shinyUI(
     	),
       	tabPanel('Rosling Chart',
 			htmlOutput('graphgvis'),
-			HTML("<br>"),
+			HTML("<br/>"),
 			fluidRow(column(1, "")),
 			fluidRow(
 				column(3, offset=1, textOutput('AddIndicatorText')),
 				column(1, actionButton("AddIndicator", "Add indicator"))
-			)
+			),
+			HTML("<br/><i><small>*If you don't see a graph above, make sure Adobe Flash Player is installed and enabled in your browser.</small></i>")
       	),
       	tabPanel("Help",
       		includeHTML("README.html")

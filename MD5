@@ -1,5 +1,5 @@
-7c16a7afd5b06b14c4f5e689943c343d *ChangeLog
-8e7b2e51255ee6a177102cf8dda36049 *DESCRIPTION
+03144a3db40481f476a5f49b8196caff *ChangeLog
+c7e3a7734f336d2a7167a16349806538 *DESCRIPTION
 02dbf634631ebf7d1eae054610b203cd *LICENSE
 4786c68b2f2f57a4b55d7b7c891df060 *NAMESPACE
 b7d362ac39340e16db70b52d54aef539 *R/global.R
@@ -8,15 +8,15 @@ dbb165c47d4f500d99d4e89e427328e2 *data/iso3166.rda
 1888f2c7dce835b77cf436344dd715a2 *data/iso3166.txt.gz
 4fbab029fa6fa0f7200ec76148e1011c *data/iso3166ud.rda
 8fc815c99483e74223f2281924a472bb *data/iso3166ud.txt.gz
-d140065494ecc176b84a952e87b508f6 *inst/explore/README.html
-4cb75a8616b3d5389e646c9a5c363e23 *inst/explore/server.R
-934695c2bc97a2b816ab79e008b619a1 *inst/explore/ui.R
+4d33f32a87238ea5ebe07776ef8dab60 *inst/explore/README.html
+e69ff63ae5644ad40881f82982af0d3f *inst/explore/server.R
+b604537ac4e77ba68d1c55b5e3d85737 *inst/explore/ui.R
 bce006fe7267b112022404b841ea4031 *inst/explore/www/geochart.js
 21efb6cd0a5048e7067d70dd2b0eb353 *man/iso3166.Rd
 050297e5dc078beff06c44b1123aca95 *man/wpp.by.country.Rd
 e170c73363508a5a1c9a4ded5427ef7b *man/wpp.explore.Rd
 d49a4e82b6c2561f5d7c65f8705c902b *man/wpp.indicator.Rd
-f4b091201a26807928a479fff1c447db *man/wppExplorer-package.Rd
+71a73a369023a7f7125455708b430d91 *man/wppExplorer-package.Rd
 9a5d8b05edfad5d661bea00d2c1e5ad1 *man/wpp_year.Rd
 2f78903b3e0f3a5fc1641b4fbb476dfa *tests/testthat.R
 2ee99f6ecb935944ea19619cd47abcda *tests/testthat/test-indicators.R
